@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Name** | Indipa Gangoda |
-| **Index** | COBSCCOMP251P-028@student.nibm.lk |
+| **Index** | COBSCCOMP251P-028 |
 | **Session** | NB6007CEM S2 |
 
 A RESTful API built with **Node.js** and **Express** for monitoring police tuk-tuk vehicles across Sri Lanka. The API exposes reference data (provinces, districts, police stations), vehicle management, and GPS location pings reported by tracking devices fitted to each vehicle.
