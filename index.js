@@ -17,6 +17,58 @@ const sendById = (res, items, id) => {
   return res.json(item);
 };
 
+const toProvinceResponse = (province) => ({
+  province_id: province.id,
+  name: province.name,
+});
+
+const toDistrictResponse = (district) => ({
+  district_id: district.id,
+  name: district.name,
+  province_id: district.province_id,
+});
+
+const toStationResponse = (station) => ({
+  station_id: station.id,
+  name: station.name,
+  district_id: station.district_id,
+});
+
+const toVehicleResponse = (vehicle) => ({
+  vehicle_id: vehicle.id,
+  reg_number: vehicle.registration_number,
+  device_id: vehicle.device_id,
+  station_id: vehicle.station_id,
+});
+
+const toPingResponse = (ping) => ({
+  ping_id: ping.id,
+  vehicle_id: ping.vehicle_id,
+  timestamp: ping.timestamp,
+  lat: ping.latitude ?? ping.latitute,
+  lng: ping.longitude,
+  speed: ping.speed ?? null,
+});
+
+const toPositionResponse = (ping) => ({
+  vehicle_id: ping.vehicle_id,
+  timestamp: ping.timestamp,
+  lat: ping.latitude ?? ping.latitute,
+  lng: ping.longitude,
+  speed: ping.speed ?? null,
+});
+
+const toVehicleCompositeResponse = (vehicle) => {
+  const lastPing = seed.pings
+    .filter((ping) => ping.vehicle_id === vehicle.id)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+  return {
+    ...toVehicleResponse(vehicle),
+    last_ping: lastPing ? toPingResponse(lastPing) : null,
+  };
+};
+
 const createDeviceKey = (vehicleId) => `key_v${String(vehicleId).padStart(2, '0')}`;
 
 const deviceKeys = seed.vehicles.reduce((keys, vehicle) => {
@@ -100,31 +152,49 @@ app.get('/', basicAuth, (req, res) => {
 });
 
 app.get('/provinces', basicAuth, (req, res) => {
-  res.json(seed.provinces);
+  res.json(seed.provinces.map(toProvinceResponse));
 });
 
 app.get('/provinces/:id', basicAuth, (req, res) => {
-  sendById(res, seed.provinces, req.params.id);
+  const province = findById(seed.provinces, req.params.id);
+
+  if (!province) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  return res.json(toProvinceResponse(province));
 });
 
 app.get('/districts', basicAuth, (req, res) => {
-  res.json(seed.districts);
+  res.json(seed.districts.map(toDistrictResponse));
 });
 
 app.get('/districts/:id', basicAuth, (req, res) => {
-  sendById(res, seed.districts, req.params.id);
+  const district = findById(seed.districts, req.params.id);
+
+  if (!district) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  return res.json(toDistrictResponse(district));
 });
 
 app.get('/stations', basicAuth, (req, res) => {
-  res.json(seed.stations);
+  res.json(seed.stations.map(toStationResponse));
 });
 
 app.get('/stations/:id', basicAuth, (req, res) => {
-  sendById(res, seed.stations, req.params.id);
+  const station = findById(seed.stations, req.params.id);
+
+  if (!station) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  return res.json(toStationResponse(station));
 });
 
 app.get('/vehicles', basicAuth, (req, res) => {
-  res.json(seed.vehicles);
+  res.json(seed.vehicles.map(toVehicleResponse));
 });
 
 app.post('/vehicles', basicAuth, (req, res) => {
@@ -155,7 +225,13 @@ app.post('/vehicles', basicAuth, (req, res) => {
 });
 
 app.get('/vehicles/:id', basicAuth, (req, res) => {
-  sendById(res, seed.vehicles, req.params.id);
+  const vehicle = findById(seed.vehicles, req.params.id);
+
+  if (!vehicle) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  return res.json(toVehicleCompositeResponse(vehicle));
 });
 
 app.put('/vehicles/:id', basicAuth, (req, res) => {
@@ -204,7 +280,11 @@ app.get('/vehicles/:id/pings', basicAuth, (req, res) => {
     return res.status(404).json({ error: 'Vehicle not found' });
   }
 
-  return res.json(seed.pings.filter((ping) => ping.vehicle_id === vehicle.id));
+  return res.json(
+    seed.pings
+      .filter((ping) => ping.vehicle_id === vehicle.id)
+      .map(toPingResponse),
+  );
 });
 
 app.post('/vehicles/:vehicleId/pings', deviceApiKeyAuth, (req, res) => {
@@ -250,21 +330,15 @@ app.get('/vehicles/:id/pings/:pingId', basicAuth, (req, res) => {
 });
 
 app.get('/vehicles/:id/last-position', basicAuth, (req, res) => {
-  const vehicle = findById(seed.vehicles, req.params.id);
-
-  if (!vehicle) {
-    return res.status(404).json({ error: 'Vehicle not found' });
-  }
-
   const lastPosition = seed.pings
-    .filter((ping) => ping.vehicle_id === vehicle.id)
+    .filter((ping) => ping.vehicle_id === Number(req.params.id))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
 
   if (!lastPosition) {
     return res.status(404).json({ error: 'Ping not found' });
   }
 
-  return res.json(lastPosition);
+  return res.json(toPositionResponse(lastPosition));
 });
 
 app.listen(port, () => {
