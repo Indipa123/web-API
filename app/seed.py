@@ -42,7 +42,7 @@ def seed():
         for uid,(role,pid,did) in enumerate(users,1):
             token = secrets.token_urlsafe(32)
             credentials[f'user_{uid}_{role}'] = token
-            db.execute('INSERT INTO users VALUES (?,?,?,?,?,?,?)',
+            db.execute('INSERT INTO users VALUES (?,?,?,?,?,?)',
                        (uid,f'Demo {role} reader {uid}',role,pid,did,digest(token)))
         # 673 points include both ends of a full seven-day interval.
         end = datetime.now(timezone.utc).replace(second=0,microsecond=0)
