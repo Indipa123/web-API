@@ -124,3 +124,27 @@ def test_errors_and_docs(setup):
     spec=c.get('/openapi.json').json()
     assert 'HTTPBearer' in spec['components']['securitySchemes']
     assert 'post' in spec['paths']['/api/v1/installations/{installation_id}/readings']
+
+def test_documented_response_contracts(setup):
+    c,t=setup
+    spec=c.get('/openapi.json').json()
+    route=spec['paths']['/api/v1/installations/{installation_id}/readings']
+    assert route['get']['responses']['200']['content']['application/json']['schema']['$ref'].endswith('/ReadingPage')
+    assert '304' in route['get']['responses']
+    assert any(p['name']=='If-Match' for p in spec['paths']['/api/v1/installations/{installation_id}']['put']['parameters'])
+
+def test_cache_cannot_bypass_authorization(setup):
+    r=get(setup,'/installations/2')
+    denied=get(setup,'/installations/2','user_3_district',headers={'If-None-Match':r.headers['etag']})
+    assert denied.status_code==404 and 'etag' not in denied.headers
+
+def test_summary_math(setup):
+    r=get(setup,'/districts/1/generation-summary').json()
+    assert r['installation_count']==8
+    assert r['fresh_installation_count']+r['stale_or_missing_count']==8
+    assert r['estimated_today_energy_kwh']>=0
+    with connect() as db:
+        rows=db.execute('SELECT r.* FROM readings r JOIN installations i ON i.id=r.installation_id WHERE i.substation_id=1 AND r.timestamp=(SELECT MAX(r2.timestamp) FROM readings r2 WHERE r2.installation_id=r.installation_id AND r2.timestamp<=?)',[datetime.now(timezone.utc).isoformat(timespec='microseconds')]).fetchall()
+    cutoff=datetime.now(timezone.utc)-timedelta(minutes=30)
+    expected=sum(x['power_kw'] for x in rows if datetime.fromisoformat(x['timestamp'])>=cutoff)
+    assert r['fresh_power_kw']==pytest.approx(round(expected,3))

@@ -17,6 +17,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .db import connect, initialize
+from . import contracts
 from .seed import digest, seed
 
 @asynccontextmanager
@@ -140,54 +141,54 @@ def health():
     with connect() as db: db.execute('SELECT 1').fetchone()
     return {'status':'ok'}
 
-@app.get('/api/v1/provinces',tags=['Hierarchy'])
+@app.get('/api/v1/provinces',response_model=contracts.ProvinceCollection,tags=['Hierarchy'])
 def provinces(request:Request,u=Depends(reader)):
     clause,args=scope(u)
     return collection(request,query('SELECT DISTINCT p.* FROM provinces p JOIN districts d ON d.province_id=p.id WHERE '+clause+' ORDER BY p.id',args))
 
-@app.get('/api/v1/provinces/{province_id}',tags=['Hierarchy'])
+@app.get('/api/v1/provinces/{province_id}',response_model=contracts.Province,tags=['Hierarchy'])
 def province(province_id:int,request:Request,u=Depends(reader)):
     clause,args=scope(u)
     return respond(request,one('SELECT DISTINCT p.* FROM provinces p JOIN districts d ON d.province_id=p.id WHERE p.id=? AND '+clause,[province_id,*args]))
 
-@app.get('/api/v1/provinces/{province_id}/districts',tags=['Hierarchy'])
+@app.get('/api/v1/provinces/{province_id}/districts',response_model=contracts.DistrictCollection,tags=['Hierarchy'])
 def districts(province_id:int,request:Request,u=Depends(reader)):
     province(province_id,request,u)
     clause,args=scope(u)
     return collection(request,query('SELECT d.* FROM districts d JOIN provinces p ON p.id=d.province_id WHERE p.id=? AND '+clause+' ORDER BY d.id',[province_id,*args]))
 
-@app.get('/api/v1/districts/{district_id}',tags=['Hierarchy'])
+@app.get('/api/v1/districts/{district_id}',response_model=contracts.District,tags=['Hierarchy'])
 def district(district_id:int,request:Request,u=Depends(reader)):
     clause,args=scope(u)
     return respond(request,one('SELECT d.* FROM districts d JOIN provinces p ON p.id=d.province_id WHERE d.id=? AND '+clause,[district_id,*args]))
 
-@app.get('/api/v1/districts/{district_id}/grid-substations',tags=['Hierarchy'])
+@app.get('/api/v1/districts/{district_id}/grid-substations',response_model=contracts.SubstationCollection,tags=['Hierarchy'])
 def substations(district_id:int,request:Request,u=Depends(reader)):
     district(district_id,request,u)
     return collection(request,query('SELECT * FROM substations WHERE district_id=? ORDER BY id',[district_id]))
 
-@app.get('/api/v1/grid-substations/{substation_id}',tags=['Hierarchy'])
+@app.get('/api/v1/grid-substations/{substation_id}',response_model=contracts.Substation,tags=['Hierarchy'])
 def substation(substation_id:int,request:Request,u=Depends(reader)):
     clause,args=scope(u)
     return respond(request,one('SELECT s.* FROM substations s JOIN districts d ON d.id=s.district_id JOIN provinces p ON p.id=d.province_id WHERE s.id=? AND '+clause,[substation_id,*args]))
 
-@app.get('/api/v1/grid-substations/{substation_id}/installations',tags=['Hierarchy'])
+@app.get('/api/v1/grid-substations/{substation_id}/installations',response_model=contracts.InstallationCollection,tags=['Hierarchy'])
 def installations(substation_id:int,request:Request,u=Depends(reader)):
     substation(substation_id,request,u)
     return collection(request,query('SELECT '+PUBLIC+' FROM installations i WHERE substation_id=? ORDER BY id',[substation_id]))
 
-@app.get('/api/v1/installations/{installation_id}',tags=['Installations'])
+@app.get('/api/v1/installations/{installation_id}',response_model=contracts.Installation,tags=['Installations'])
 def get_installation(installation_id:int,request:Request,u=Depends(reader)):
     return respond(request,installation(installation_id,u))
 
-@app.get('/api/v1/installations/{installation_id}/overview',tags=['Installations'])
+@app.get('/api/v1/installations/{installation_id}/overview',response_model=contracts.Overview,tags=['Installations'])
 def overview(installation_id:int,request:Request,u=Depends(reader)):
     item=installation(installation_id,u)
     related=one('SELECT p.name AS province,d.name AS district,s.name AS substation'+JOINS+' WHERE i.id=?',[installation_id])
     readings=query('SELECT * FROM readings WHERE installation_id=? ORDER BY timestamp DESC LIMIT 1',[installation_id])
     return respond(request,{'installation':item,'hierarchy':related,'last_known_reading':readings[0] if readings else None})
 
-@app.get('/api/v1/installations/{installation_id}/last-known-reading',tags=['Readings'])
+@app.get('/api/v1/installations/{installation_id}/last-known-reading',response_model=contracts.Reading,tags=['Readings'])
 def latest(installation_id:int,request:Request,u=Depends(reader)):
     installation(installation_id,u)
     return respond(request,one('SELECT * FROM readings WHERE installation_id=? ORDER BY timestamp DESC LIMIT 1',[installation_id]))
@@ -230,16 +231,16 @@ def history(request,u,q,iid=None):
                             'next':link(q.page+1) if q.page*q.page_size<count else None,
                             'previous':link(q.page-1) if q.page>1 else None})
 
-@app.get('/api/v1/readings',tags=['Readings'])
+@app.get('/api/v1/readings',response_model=contracts.ReadingPage,tags=['Readings'])
 def all_readings(request:Request,q:HistoryQuery=Depends(),u=Depends(reader)):
     return history(request,u,q)
 
-@app.get('/api/v1/installations/{installation_id}/readings',tags=['Readings'])
+@app.get('/api/v1/installations/{installation_id}/readings',response_model=contracts.ReadingPage,tags=['Readings'])
 def scoped_readings(installation_id:int,request:Request,q:HistoryQuery=Depends(),u=Depends(reader)):
     installation(installation_id,u)
     return history(request,u,q,installation_id)
 
-@app.get('/api/v1/installations/{installation_id}/readings/{reading_id}',tags=['Readings'])
+@app.get('/api/v1/installations/{installation_id}/readings/{reading_id}',response_model=contracts.Reading,tags=['Readings'])
 def reading(installation_id:int,reading_id:int,request:Request,u=Depends(reader)):
     installation(installation_id,u)
     return respond(request,one('SELECT * FROM readings WHERE id=? AND installation_id=?',[reading_id,installation_id]))
@@ -257,7 +258,7 @@ class ReadingInput(BaseModel):
         if value>datetime.now(timezone.utc)+timedelta(minutes=5): raise ValueError('Timestamp is too far in the future')
         return value
 
-@app.post('/api/v1/installations/{installation_id}/readings',status_code=201,tags=['Ingestion'],
+@app.post('/api/v1/installations/{installation_id}/readings',response_model=contracts.Reading,status_code=201,tags=['Ingestion'],
  responses={201:{'description':'Reading created; Location identifies its resource','headers':{'Location':{'schema':{'type':'string'}}}}})
 def ingest(installation_id:int,body:ReadingInput,request:Request,p=Depends(principal)):
     if p['kind']!='device' or p['installation_id']!=installation_id: fail(403,'A meter may only append readings to its own installation')
@@ -282,7 +283,7 @@ class InstallationInput(BaseModel):
     capacity_kw:float=Field(gt=0,le=10000)
     substation_id:int=Field(gt=0)
 
-@app.post('/api/v1/installations',status_code=201,tags=['Provisioning'])
+@app.post('/api/v1/installations',response_model=contracts.CreatedInstallation,status_code=201,tags=['Provisioning'])
 def create_installation(body:InstallationInput,request:Request,p=Depends(provisioner)):
     token=secrets.token_urlsafe(32)
     with connect() as db:
@@ -294,7 +295,7 @@ def create_installation(body:InstallationInput,request:Request,p=Depends(provisi
     return JSONResponse({'installation':item,'device_token':token},status_code=201,
                         headers={'Location':f'/api/v1/installations/{item["id"]}','Cache-Control':'no-store','ETag':etag(item)})
 
-@app.put('/api/v1/installations/{installation_id}',tags=['Provisioning'])
+@app.put('/api/v1/installations/{installation_id}',response_model=contracts.Installation,tags=['Provisioning'])
 def replace_installation(installation_id:int,body:InstallationInput,request:Request,p=Depends(provisioner)):
     with connect() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -318,7 +319,7 @@ def delete_installation(installation_id:int,p=Depends(provisioner)):
         except sqlite3.IntegrityError: fail(409,'Cannot delete an installation with immutable reading history')
     return Response(status_code=204)
 
-@app.get('/api/v1/districts/{district_id}/generation-summary',tags=['Summaries'])
+@app.get('/api/v1/districts/{district_id}/generation-summary',response_model=contracts.Summary,tags=['Summaries'])
 def summary(district_id:int,request:Request,u=Depends(reader)):
     district(district_id,request,u)
     now=datetime.now(timezone.utc)
@@ -344,3 +345,24 @@ def summary(district_id:int,request:Request,u=Depends(reader)):
       'installation_count':len(ids),'fresh_installation_count':fresh,'stale_or_missing_count':len(ids)-fresh,
       'energy_covered_installation_count':complete,'freshness_minutes':30,
       'energy_method':'latest cumulative value minus last value at/before local midnight; boundary gaps are approximate'})
+
+
+def documented_openapi():
+    from fastapi.openapi.utils import get_openapi
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema=get_openapi(title=app.title,version=app.version,description=app.description,routes=app.routes)
+    for path, operations in schema['paths'].items():
+        for method,operation in operations.items():
+            if method=='get' and path.startswith('/api/'):
+                operation.setdefault('parameters',[]).append({'name':'If-None-Match','in':'header','required':False,'schema':{'type':'string'},'description':'ETag from a previous response; a match returns 304 with no body.'})
+                operation['responses']['304']={'description':'Not modified; empty response body'}
+                operation['responses']['200'].setdefault('headers',{})['ETag']={'schema':{'type':'string'},'description':'Representation fingerprint'}
+            if method=='put':
+                operation.setdefault('parameters',[]).append({'name':'If-Match','in':'header','required':True,'schema':{'type':'string'},'description':'Current installation ETag; stale values fail with 412.'})
+            if method=='post':
+                operation['responses']['201'].setdefault('headers',{})['Location']={'schema':{'type':'string'},'description':'Relative URI of the created resource'}
+    app.openapi_schema=schema
+    return schema
+
+app.openapi=documented_openapi
