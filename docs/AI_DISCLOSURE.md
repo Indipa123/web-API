@@ -11,7 +11,7 @@ The attached brief was read as task material. The assistant extracted requiremen
 
 The AI-generated files are the starting implementation, not evidence of unaided student authorship. The assistant-created Git commits use an explicit AI-assistant author. No historical work dates were fabricated.
 
-No student-authored report, signed declaration, public deployment, remote repository invitation or viva attendance was produced in this build. These remain your responsibilities. Learning notes and this disclosure record must not be presented as your original report prose.
+The completed source was pushed to the supplied repository on `coursework/solar-api`. No student-authored report, signed declaration, public deployment, collaborator invitation or viva attendance was produced in this build. These remain your responsibilities. Learning notes and this disclosure record must not be presented as your original report prose.
 
 Before submission:
 - Preserve/export the conversation if your module requires full prompts or interaction references.

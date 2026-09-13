@@ -2,7 +2,7 @@
 
 A working coursework implementation for NB6007CEM. It contains the backend, synthetic seed generator, Swagger interface, tests, Docker deployment files and learning notes. There is no dashboard because the brief asks for the API only.
 
-**Status:** prepared locally. Public hosting, your remote repository/collaborator invitation, your own report, signed declaration and viva remain to be completed. Read `docs/VERIFICATION.md` for the actual checks performed. A live deployment is essential; running on your laptop alone does not complete the assignment.
+**Status:** built, tested and published to [your coursework branch](https://github.com/Indipa123/web-API/tree/coursework/solar-api). Public hosting, the collaborator invitation, your own report, signed declaration and viva remain to be completed. Read `docs/VERIFICATION.md` for the actual checks performed. A live deployment is essential; running on your laptop alone does not complete the assignment.
 
 ## 1. Open the project
 

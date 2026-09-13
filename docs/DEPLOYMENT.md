@@ -1,6 +1,6 @@
 # Publish the API step by step
 
-Deployment has not been performed for you: no hosting account or remote repository has been supplied. Choose a hosting service/account first. The Render route below uses a paid service and persistent disk; review its current price before you create it. No purchase is included in this project.
+Public deployment has not been performed: you confirmed that you do not yet use a hosting provider. The code has been published to your supplied GitHub repository on branch `coursework/solar-api`. Choose a hosting service/account first. The Render route below uses a paid service and persistent disk; review its current price before you create it. No purchase is included in this project.
 
 ## A. Publish to your supplied repository
 
@@ -24,7 +24,7 @@ For every real later improvement, commit the changed files with an accurate mess
 
 ## B. Deploy using Render Docker
 
-1. Connect the repository to a new Render Web Service and select branch `coursework/solar-api`.
+1. Create a Render account at https://render.com and connect your GitHub account. Create a new Web Service, select `Indipa123/web-API`, and select branch `coursework/solar-api`.
 2. Select **Docker** as the language/runtime. Use the supplied root `Dockerfile`.
 3. Select an appropriate paid service and attach a persistent disk mounted at `/var/data` (1 GB is ample for the demonstration seed; check your actual usage).
 4. Add environment variables:
