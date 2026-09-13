@@ -6,6 +6,15 @@ A working coursework implementation for NB6007CEM. It contains the backend, synt
 
 ## 1. Open the project
 
+To obtain a fresh copy with the Git history, use:
+
+```sh
+git clone --branch coursework/solar-api https://github.com/Indipa123/web-API.git solar-api
+cd solar-api
+```
+
+The ZIP download contains source files only. Use the clone command above if you want to commit and push changes. The already-created local project folder includes its Git history.
+
 Open this `solar-api` folder in VS Code. Select Terminal → New Terminal. Commands below assume the terminal is inside this folder. Use Python 3.12 or newer (the project was tested with 3.12).
 
 On a Mac:
